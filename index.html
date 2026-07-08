@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrxOpti — Optimizador Gaming para Windows</title>
+<meta name="description" content="Más FPS, menos ping, cero input lag. DrxOpti optimiza tu PC automáticamente cuando abres un juego. Datos reales, resultados medibles.">
+<style>
+:root{
+  --bg:#06060b; --bg2:#0a0a12; --card:#0d0d16; --border:#1c1c2e;
+  --green:#00ff87; --blue:#00d4ff; --gold:#ffd700; --red:#ff4444;
+  --dim:#3a4455; --mid:#66788c; --txt:#ccddee;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:'Consolas','Courier New',monospace;overflow-x:hidden}
+
+/* ── fondo animado ── */
+.grid-bg{position:fixed;inset:0;z-index:-2;
+  background-image:linear-gradient(rgba(0,255,135,.03) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,255,135,.03) 1px,transparent 1px);
+  background-size:48px 48px;
+  animation:gridMove 24s linear infinite}
+@keyframes gridMove{to{background-position:48px 48px}}
+.glow-orb{position:fixed;border-radius:50%;filter:blur(120px);opacity:.14;z-index:-1;pointer-events:none}
+.orb1{width:520px;height:520px;background:var(--green);top:-160px;left:-120px;animation:float1 14s ease-in-out infinite}
+.orb2{width:420px;height:420px;background:var(--blue);bottom:-120px;right:-100px;animation:float2 18s ease-in-out infinite}
+@keyframes float1{50%{transform:translate(60px,40px)}}
+@keyframes float2{50%{transform:translate(-50px,-60px)}}
+
+/* ── util ── */
+.rgb-text{background:linear-gradient(90deg,var(--green),var(--blue),var(--gold),var(--green));
+  background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:rgbShift 6s linear infinite}
+@keyframes rgbShift{to{background-position:300% 0}}
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+.reveal{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.2,.7,.3,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* ── nav ── */
+nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(6,6,11,.82);
+  backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.nav-inner{max-width:1100px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:22px;font-weight:bold;letter-spacing:1px}
+.logo .g{color:var(--green)}.logo .b{color:var(--blue)}
+.nav-links{display:flex;gap:26px;align-items:center}
+.nav-links a{color:var(--mid);text-decoration:none;font-size:13px;transition:color .2s}
+.nav-links a:hover{color:var(--green)}
+.btn{display:inline-block;padding:12px 28px;border-radius:8px;text-decoration:none;
+  font-weight:bold;font-size:14px;transition:all .25s;cursor:pointer;border:none;font-family:inherit}
+.btn-primary{background:var(--green);color:#000;box-shadow:0 0 24px rgba(0,255,135,.35)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(0,255,135,.55)}
+.btn-ghost{border:1px solid var(--border);color:var(--mid);background:transparent}
+.btn-ghost:hover{border-color:var(--green);color:var(--green)}
+.btn-sm{padding:8px 18px;font-size:12px}
+
+/* ── hero ── */
+.hero{min-height:100vh;display:flex;align-items:center;padding-top:80px;position:relative}
+.hero-inner{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
+.hero h1{font-size:52px;line-height:1.1;margin-bottom:20px}
+.hero p.sub{color:var(--mid);font-size:16px;line-height:1.7;margin-bottom:32px;max-width:480px}
+.hero-cta{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.hero-note{color:var(--dim);font-size:11px;margin-top:14px}
+.badge-row{display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap}
+.badge{font-size:11px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);color:var(--mid)}
+.badge b{color:var(--green)}
+
+/* mock ventana */
+.mock{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;
+  box-shadow:0 30px 80px rgba(0,0,0,.6);position:relative;animation:mockFloat 6s ease-in-out infinite}
+@keyframes mockFloat{50%{transform:translateY(-10px)}}
+.mock::before{content:"";position:absolute;inset:-1px;border-radius:14px;padding:1px;z-index:-1;
+  background:linear-gradient(120deg,var(--green),var(--blue),var(--gold),var(--green));background-size:300% 300%;
+  animation:rgbShift 5s linear infinite;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude}
+.mock-bar{display:flex;gap:6px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.dot{width:10px;height:10px;border-radius:50%}
+.mock-body{padding:22px;font-size:12px}
+.mock-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(28,28,46,.5)}
+.mock-row span:first-child{color:var(--dim)}
+.mock-score{text-align:center;padding:18px 0 8px}
+.mock-score .big{font-size:46px;font-weight:bold;color:var(--green)}
+.mock-score .lbl{color:var(--dim);font-size:10px;letter-spacing:2px}
+.bar-track{height:7px;background:#0a0a14;border-radius:4px;margin:6px 0 2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green),var(--blue));
+  animation:fillUp 2.4s cubic-bezier(.2,.7,.3,1) forwards;transform-origin:left}
+@keyframes fillUp{from{transform:scaleX(0)}}
+
+/* ── stats strip ── */
+.stats{border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg2);padding:36px 0}
+.stats-inner{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;text-align:center}
+.stat .num{font-size:34px;font-weight:bold;color:var(--green)}
+.stat .lbl{color:var(--dim);font-size:11px;margin-top:4px;letter-spacing:1px}
+
+/* ── features ── */
+section{padding:90px 0}
+.sec-title{font-size:34px;text-align:center;margin-bottom:12px}
+.sec-sub{text-align:center;color:var(--mid);margin-bottom:54px;font-size:14px}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.feat{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px 24px;
+  transition:all .3s;position:relative;overflow:hidden}
+.feat:hover{transform:translateY(-6px);border-color:var(--green);box-shadow:0 18px 50px rgba(0,255,135,.1)}
+.feat .icon{font-size:28px;margin-bottom:14px}
+.feat h3{font-size:16px;margin-bottom:10px;color:var(--txt)}
+.feat p{color:var(--mid);font-size:12.5px;line-height:1.65}
+.feat .tag{position:absolute;top:16px;right:16px;font-size:9px;padding:3px 9px;border-radius:12px;
+  background:rgba(255,215,0,.1);color:var(--gold);border:1px solid rgba(255,215,0,.3)}
+
+/* ── before/after ── */
+.ba{display:grid;grid-template-columns:1fr auto 1fr;gap:26px;align-items:center;max-width:760px;margin:0 auto}
+.ba-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:30px;text-align:center}
+.ba-card.after{border-color:var(--green);box-shadow:0 0 40px rgba(0,255,135,.12)}
+.ba-num{font-size:52px;font-weight:bold}
+.ba-card.before .ba-num{color:var(--dim)}
+.ba-card.after .ba-num{color:var(--green)}
+.ba-lbl{color:var(--dim);font-size:11px;letter-spacing:2px;margin-top:6px}
+.ba-arrow{font-size:34px;color:var(--green);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.25);opacity:.7}}
+.ba-list{max-width:760px;margin:34px auto 0;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.ba-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center}
+.ba-item .v{color:var(--blue);font-size:20px;font-weight:bold}
+.ba-item .k{color:var(--dim);font-size:10px;margin-top:4px}
+
+/* ── pricing ── */
+.price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:960px;margin:0 auto}
+.price{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:34px 28px;
+  position:relative;transition:transform .3s}
+.price:hover{transform:translateY(-6px)}
+.price.hot{border-color:var(--green)}
+.price.hot::before{content:"MÁS POPULAR";position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+  background:var(--green);color:#000;font-size:10px;font-weight:bold;padding:4px 16px;border-radius:12px;letter-spacing:1px}
+.price h3{font-size:14px;color:var(--mid);letter-spacing:2px}
+.price .amount{font-size:42px;font-weight:bold;margin:14px 0 4px}
+.price.hot .amount{color:var(--green)}
+.price .per{color:var(--dim);font-size:11px;margin-bottom:22px}
+.price ul{list-style:none;margin-bottom:26px}
+.price li{padding:7px 0;font-size:12.5px;color:var(--mid);border-bottom:1px solid rgba(28,28,46,.5)}
+.price li b{color:var(--txt)}
+.price li.no{color:var(--dim);text-decoration:line-through}
+.price .btn{width:100%;text-align:center}
+
+/* ── faq ── */
+.faq{max-width:720px;margin:0 auto}
+.faq-item{border:1px solid var(--border);border-radius:10px;margin-bottom:10px;background:var(--card);overflow:hidden}
+.faq-q{padding:18px 22px;cursor:pointer;display:flex;justify-content:space-between;font-size:13.5px;user-select:none}
+.faq-q:hover{color:var(--green)}
+.faq-q .chev{transition:transform .3s;color:var(--green)}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .35s ease;color:var(--mid);font-size:12.5px;line-height:1.7}
+.faq-item.open .faq-a{max-height:200px}
+.faq-item.open .chev{transform:rotate(180deg)}
+.faq-a p{padding:0 22px 18px}
+
+/* ── cta final ── */
+.final{text-align:center;position:relative}
+.final h2{font-size:38px;margin-bottom:16px}
+.final p{color:var(--mid);margin-bottom:34px}
+
+/* ── footer ── */
+footer{border-top:1px solid var(--border);padding:34px 0;text-align:center;color:var(--dim);font-size:11px}
+footer a{color:var(--mid);text-decoration:none;margin:0 12px}
+footer a:hover{color:var(--green)}
+
+@media(max-width:860px){
+  .hero-inner{grid-template-columns:1fr}
+  .hero h1{font-size:36px}
+  .feat-grid,.price-grid,.ba-list{grid-template-columns:1fr}
+  .stats-inner{grid-template-columns:repeat(2,1fr)}
+  .ba{grid-template-columns:1fr}
+  .ba-arrow{transform:rotate(90deg)}
+  .nav-links a:not(.btn){display:none}
+}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="glow-orb orb1"></div>
+<div class="glow-orb orb2"></div>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo"><span class="g">DRX</span><span class="b">OPTI</span></div>
+    <div class="nav-links">
+      <a href="#features">Funciones</a>
+      <a href="#resultados">Resultados</a>
+      <a href="#precios">Precios</a>
+      <a href="#faq">FAQ</a>
+      <a href="#descargar" class="btn btn-primary btn-sm">DESCARGAR</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="container hero-inner">
+    <div>
+      <div class="badge-row">
+        <span class="badge"><b>⚡</b> Optimización automática</span>
+        <span class="badge"><b>📊</b> Datos reales, no humo</span>
+      </div>
+      <h1>Más FPS.<br>Menos ping.<br><span class="rgb-text">Cero excusas.</span></h1>
+      <p class="sub">DrxOpti detecta cuándo abres tu juego y optimiza tu PC al instante: cierra procesos, libera RAM, prioriza tu CPU y reduce tu latencia. Cuando cierras el juego, todo vuelve a la normalidad. Automático.</p>
+      <div class="hero-cta">
+        <a href="#descargar" class="btn btn-primary">⬇ DESCARGAR GRATIS</a>
+        <a href="#features" class="btn btn-ghost">Ver funciones</a>
+      </div>
+      <p class="hero-note">Windows 10/11 · Sin instalación complicada · Whitelist para Discord y OBS incluida</p>
+    </div>
+
+    <!-- mock de la app -->
+    <div class="mock">
+      <div class="mock-bar">
+        <div class="dot" style="background:#ff5f57"></div>
+        <div class="dot" style="background:#ffbd2e"></div>
+        <div class="dot" style="background:#28c840"></div>
+      </div>
+      <div class="mock-body">
+        <div class="mock-score">
+          <div class="lbl">PUNTUACIÓN DEL SISTEMA</div>
+          <div class="big" id="scoreCounter">0</div>
+          <div class="lbl" style="color:var(--green)">✦ MODO COMPETITIVO</div>
+        </div>
+        <div class="mock-row"><span>CPU</span><span style="color:var(--green)">12%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:12%"></div></div>
+        <div class="mock-row"><span>RAM liberada</span><span style="color:var(--blue)">+3.6 GB</span></div>
+        <div class="mock-row"><span>Procesos cerrados</span><span style="color:var(--blue)">−19</span></div>
+        <div class="mock-row"><span>GPU Temp</span><span style="color:var(--green)">48°C · FRÍA</span></div>
+        <div class="mock-row"><span>Sys Jitter</span><span style="color:var(--green)">0.52ms · ÓPTIMO</span></div>
+        <div class="mock-row" style="border:none"><span>Ping Riot</span><span style="color:var(--gold)">32ms</span></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="container stats-inner">
+    <div class="stat reveal"><div class="num" data-count="3.6">0</div><div class="lbl">GB RAM LIBERADA PROMEDIO</div></div>
+    <div class="stat reveal"><div class="num" data-count="19">0</div><div class="lbl">PROCESOS CERRADOS</div></div>
+    <div class="stat reveal"><div class="num" data-count="96">0</div><div class="lbl">% MENOS JITTER DE TIMER</div></div>
+    <div class="stat reveal"><div class="num" data-count="9">0</div><div class="lbl">TWEAKS DE RED EN 1 CLIC</div></div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <h2 class="sec-title reveal">No es otro <span class="rgb-text">limpiador de Temp</span></h2>
+    <p class="sec-sub reveal">Funciones técnicas reales que la competencia no tiene</p>
+    <div class="feat-grid">
+      <div class="feat reveal">
+        <div class="icon">⚡</div>
+        <h3>Modo Tryhard Dinámico</h3>
+        <p>Detecta cuando abres Fortnite, Valorant, CS2, Warzone o Apex — o cualquier juego que agregues. Optimiza al instante y restaura todo al salir. No tocas nada.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="icon">🛡</div>
+        <h3>Whitelist Inteligente</h3>
+        <p>¿En llamada de Discord? ¿Streameando con OBS? DrxOpti los protege por defecto y nunca los cierra. Tú decides qué es intocable.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="icon">⏱</div>
+        <h3>Timer Resolution 0.5ms</h3>
+        <p>Baja el timer de Windows de 15.6ms a 0.5ms. Menos input lag medible — y lo ves en vivo en el Monitor VIP con datos reales.</p>
+        <span class="tag">★ PRO</span>
+      </div>
+      <div class="feat reveal">
+        <div class="icon">🌐</div>
+        <h3>Optimizador de Red</h3>
+        <p>Nagle off, CTCP, DNS boost con Cloudflare, throttling eliminado. 9 tweaks de red que los pros aplican a mano — tú en un clic.</p>
+        <span class="tag">★ PRO</span>
+      </div>
+      <div class="feat reveal">
+        <div class="icon">📊</div>
+        <h3>Monitor VIP en Vivo</h3>
+        <p>Temperatura GPU real vía nvidia-smi, jitter del sistema medido de verdad, uso de VRAM. Números reales que puedes verificar — no barras decorativas.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="icon">📤</div>
+        <h3>Tarjeta de Resultados</h3>
+        <p>Al optimizar, genera una imagen con tu antes/después, hardware y ping. Compártela en Discord y presume tu setup optimizado.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BEFORE/AFTER -->
+<section id="resultados" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="container">
+    <h2 class="sec-title reveal">Resultados <span class="rgb-text">medibles</span></h2>
+    <p class="sec-sub reveal">Puntuación real de un equipo con Ryzen 5 5500 + RTX 5060</p>
+    <div class="ba reveal">
+      <div class="ba-card before"><div class="ba-num">69</div><div class="ba-lbl">ANTES</div></div>
+      <div class="ba-arrow">→</div>
+      <div class="ba-card after"><div class="ba-num">80</div><div class="ba-lbl">DESPUÉS</div></div>
+    </div>
+    <div class="ba-list reveal">
+      <div class="ba-item"><div class="v">+3.6 GB</div><div class="k">RAM LIBERADA</div></div>
+      <div class="ba-item"><div class="v">15.6 → 0.5ms</div><div class="k">TIMER RESOLUTION</div></div>
+      <div class="ba-item"><div class="v">17ms</div><div class="k">MEJOR PING MEDIDO</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="precios">
+  <div class="container">
+    <h2 class="sec-title reveal">Precios <span class="rgb-text">sin letra chica</span></h2>
+    <p class="sec-sub reveal">Empieza gratis. Sube a PRO cuando veas los resultados.</p>
+    <div class="price-grid">
+      <div class="price reveal">
+        <h3>FREE</h3>
+        <div class="amount">$0</div>
+        <div class="per">para siempre</div>
+        <ul>
+          <li><b>✓</b> Modo Tryhard automático</li>
+          <li><b>✓</b> Diagnóstico del sistema</li>
+          <li><b>✓</b> Whitelist de procesos</li>
+          <li><b>✓</b> Juegos personalizados</li>
+          <li class="no">Optimizador de red</li>
+          <li class="no">Timer Resolution 0.5ms</li>
+          <li class="no">DNS Boost</li>
+        </ul>
+        <a href="#descargar" class="btn btn-ghost">DESCARGAR</a>
+      </div>
+      <div class="price hot reveal">
+        <h3>PRO</h3>
+        <div class="amount">$9.99</div>
+        <div class="per">pago único · actualizaciones 1 año</div>
+        <ul>
+          <li><b>✓</b> Todo lo de FREE</li>
+          <li><b>✓</b> Optimizador de red (9 tweaks)</li>
+          <li><b>✓</b> Timer Resolution 0.5ms</li>
+          <li><b>✓</b> DNS Boost Cloudflare</li>
+          <li><b>✓</b> Tarjeta de resultados</li>
+          <li><b>✓</b> Discord VIP + soporte directo</li>
+        </ul>
+        <a href="#descargar" class="btn btn-primary">OBTENER PRO</a>
+      </div>
+      <div class="price reveal">
+        <h3>LIFETIME</h3>
+        <div class="amount">$24.99</div>
+        <div class="per">pago único · para siempre</div>
+        <ul>
+          <li><b>✓</b> Todo lo de PRO</li>
+          <li><b>✓</b> Actualizaciones de por vida</li>
+          <li><b>✓</b> Funciones beta anticipadas</li>
+          <li><b>✓</b> Rol exclusivo en Discord</li>
+          <li><b>✓</b> 1 licencia = 2 PCs</li>
+        </ul>
+        <a href="#descargar" class="btn btn-ghost">OBTENER LIFETIME</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="container">
+    <h2 class="sec-title reveal">Preguntas frecuentes</h2>
+    <p class="sec-sub reveal">Lo que todos preguntan antes de descargar</p>
+    <div class="faq">
+      <div class="faq-item reveal">
+        <div class="faq-q">¿Me puede banear un anticheat por usar DrxOpti? <span class="chev">▾</span></div>
+        <div class="faq-a"><p>No. DrxOpti no inyecta nada en los juegos ni toca su memoria. Solo ajusta configuraciones de Windows (prioridades, red, timer) — lo mismo que harías a mano en el registro. Es invisible para Vanguard, EAC y BattlEye.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <div class="faq-q">¿Me cierra Discord si estoy en llamada? <span class="chev">▾</span></div>
+        <div class="faq-a"><p>No. Discord, OBS, Streamlabs y VoiceMeeter están protegidos por defecto en la whitelist. Puedes agregar cualquier otro programa que no quieras que se cierre.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <div class="faq-q">¿Los cambios son permanentes? ¿Puedo deshacerlos? <span class="chev">▾</span></div>
+        <div class="faq-a"><p>El Modo Tryhard es 100% reversible — al cerrar el juego todo vuelve a como estaba. Los tweaks de red y DNS tienen botón de restaurar. Nada se rompe.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <div class="faq-q">¿Funciona en PCs de gama baja? <span class="chev">▾</span></div>
+        <div class="faq-a"><p>Sí — de hecho es donde más se nota. DrxOpti detecta tu hardware (AMD/Intel, NVIDIA/AMD) y aplica solo lo que le conviene a tu equipo. En PCs con 8GB de RAM la liberación de memoria es donde más FPS ganas.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <div class="faq-q">¿Cómo activo PRO después de pagar? <span class="chev">▾</span></div>
+        <div class="faq-a"><p>Al comprar recibes una clave DRXO-XXXX-XXXX-XXXX al instante. La pegas en la app (botón de licencia abajo a la izquierda) y listo — se activa en tu PC de inmediato.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL / DOWNLOAD -->
+<section id="descargar" class="final">
+  <div class="container reveal">
+    <h2>Tu PC puede dar <span class="rgb-text">más</span>.</h2>
+    <p>Descarga gratis, corre OPTIMIZAR AHORA y mira tu puntuación subir en 60 segundos.</p>
+    <a href="https://github.com/TU-USUARIO/drxopti/releases/latest/download/DrxOpti.exe" class="btn btn-primary" style="font-size:16px;padding:16px 44px">⬇ DESCARGAR DRXOPTI</a>
+    <p class="hero-note" style="margin-top:18px">v1.1 · Windows 10/11 64-bit · ~25 MB<br>
+    <a href="https://discord.gg/acszKrpaG" style="color:#7289da">💬 Únete al Discord</a></p>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="logo" style="font-size:16px;margin-bottom:10px"><span class="g">DRX</span><span class="b">OPTI</span></div>
+    <a href="#features">Funciones</a><a href="#precios">Precios</a><a href="https://discord.gg/drxopti">Discord</a>
+    <p style="margin-top:14px">© 2026 DrxOpti. Hecho para tryhards.</p>
+  </div>
+</footer>
+
+<script>
+// reveal on scroll
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.15});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+// contador del score del mock
+function animateCount(el,target,dur=1800,decimals=0){
+  const t0=performance.now();
+  function tick(t){
+    const p=Math.min((t-t0)/dur,1),eased=1-Math.pow(1-p,3);
+    el.textContent=(target*eased).toFixed(decimals);
+    if(p<1)requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+animateCount(document.getElementById('scoreCounter'),91,2200);
+
+// contadores de la stats strip
+const statIO=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){
+    const el=e.target,v=parseFloat(el.dataset.count);
+    animateCount(el,v,1600,v%1?1:0);
+    statIO.unobserve(el);
+  }
+}),{threshold:.5});
+document.querySelectorAll('[data-count]').forEach(el=>statIO.observe(el));
+
+// FAQ acordeón
+document.querySelectorAll('.faq-q').forEach(q=>q.addEventListener('click',()=>{
+  const item=q.parentElement,wasOpen=item.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));
+  if(!wasOpen)item.classList.add('open');
+}));
+</script>
+</body>
+</html>
